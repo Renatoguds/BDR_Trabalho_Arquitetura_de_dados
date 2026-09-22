@@ -1,0 +1,157 @@
+Project saude_generico {
+  database_type: 'PostgreSQL'
+  Note: 'Modelo generico para clinicas, profissionais, pacientes, consultas, procedimentos, medicamentos e historico.'
+}
+
+Table clinica {
+  id bigint [pk, increment]
+  nome varchar(150) [not null]
+  cnpj varchar(18) [not null, unique]
+  telefone varchar(20)
+  email varchar(150)
+  logradouro varchar(150)
+  numero varchar(20)
+  complemento varchar(100)
+  cidade varchar(100)
+  estado char(2)
+  cep varchar(9)
+  ativo boolean [not null, default: true]
+}
+
+Table funcionario {
+  id bigint [pk, increment]
+  id_clinica bigint [not null]
+  nome varchar(150) [not null]
+  cpf varchar(14) [not null, unique]
+  cargo varchar(100) [not null]
+  registro_profissional varchar(50)
+  data_admissao date [not null]
+  ativo boolean [not null, default: true]
+
+  Indexes {
+    (id_clinica, id) [unique]
+  }
+}
+
+Table medico {
+  id bigint [pk, increment]
+  id_funcionario bigint [not null, unique]
+  id_clinica bigint [not null]
+  crm varchar(30) [not null, unique]
+  especialidade varchar(100)
+
+  Indexes {
+    (id_clinica, id) [unique]
+  }
+}
+
+Table paciente {
+  id bigint [pk, increment]
+  id_clinica bigint [not null]
+  id_medico_responsavel bigint [not null]
+  nome varchar(150) [not null]
+  cpf varchar(14) [not null, unique]
+  data_nascimento date [not null]
+  sexo varchar(30)
+  telefone varchar(20)
+  email varchar(150)
+  endereco varchar(250)
+  ativo boolean [not null, default: true]
+
+  Indexes {
+    (id_clinica, id) [unique]
+  }
+}
+
+Table procedimento {
+  id bigint [pk, increment]
+  nome varchar(150) [not null, unique]
+  descricao text
+  duracao_estimada_minutos integer
+  ativo boolean [not null, default: true]
+}
+
+Table clinica_procedimento {
+  id_clinica bigint [not null]
+  id_procedimento bigint [not null]
+  valor decimal(12,2)
+  ativo boolean [not null, default: true]
+
+  Indexes {
+    (id_clinica, id_procedimento) [pk]
+  }
+}
+
+Table consulta {
+  id_consulta bigint [pk, increment]
+  id_clinica bigint [not null]
+  id_paciente bigint [not null]
+  id_medico bigint [not null]
+  id_procedimento bigint
+  data_hora timestamp [not null]
+  queixa_principal text
+  diagnostico text
+  observacoes text
+  status varchar(30) [not null, default: 'agendada']
+
+  Indexes {
+    (id_clinica, id_consulta) [unique]
+  }
+}
+
+Table medicamento {
+  id_medicamento bigint [pk, increment]
+  nome_comercial varchar(150) [not null]
+  principio_ativo varchar(150)
+  concentracao varchar(80)
+  forma_farmaceutica varchar(80)
+  fabricante varchar(150)
+  ativo boolean [not null, default: true]
+}
+
+Table receituario {
+  id_receituario bigint [pk, increment]
+  id_consulta bigint [not null]
+  id_medicamento bigint [not null]
+  quantidade decimal(10,2) [not null]
+  posologia text [not null]
+  duracao_dias integer [not null]
+  observacoes text
+
+  Indexes {
+    (id_consulta, id_medicamento) [unique]
+  }
+}
+
+Table historico {
+  id_historico bigint [pk, increment]
+  id_paciente bigint
+  id_clinica bigint
+  id_medico bigint
+  id_procedimento bigint
+  id_consulta bigint
+  tipo_evento varchar(50) [not null]
+  descricao text [not null]
+  data_hora timestamp [not null]
+}
+
+Ref: funcionario.id_clinica > clinica.id
+Ref: medico.id_funcionario - funcionario.id
+Ref: medico.id_clinica > clinica.id
+Ref: paciente.(id_clinica, id_medico_responsavel) > medico.(id_clinica, id)
+Ref: clinica_procedimento.id_clinica > clinica.id
+Ref: clinica_procedimento.id_procedimento > procedimento.id
+Ref: consulta.(id_clinica, id_paciente) > paciente.(id_clinica, id)
+Ref: consulta.(id_clinica, id_medico) > medico.(id_clinica, id)
+Ref: consulta.id_procedimento > procedimento.id
+Ref: receituario.id_consulta > consulta.id_consulta
+Ref: receituario.id_medicamento > medicamento.id_medicamento
+Ref: historico.id_paciente > paciente.id
+Ref: historico.id_clinica > clinica.id
+Ref: historico.id_medico > medico.id
+Ref: historico.id_procedimento > procedimento.id
+Ref: historico.id_consulta > consulta.id_consulta
+
+Note regras_integridade {
+  'Adicionar CHECK em historico exigindo pelo menos um vinculo de contexto. Adicionar CHECK para datas, quantidades e duracao_dias maiores que zero. Garantir por trigger ou constraint adicional que medico.id_clinica seja a mesma clinica de funcionario.id.'
+}
